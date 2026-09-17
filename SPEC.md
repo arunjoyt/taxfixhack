@@ -70,23 +70,59 @@ Components to build (in `components/`): `Screen`, `Card`, `PillButton`, `Chip`, 
 
 This is "what Taxfix already knows from last year's filing".
 
-## 6. Screens (Expo Router)
+## 6. User flow (new user with an existing Taxfix account)
 
-| Route | Screen | Contents |
-|---|---|---|
-| `/` | **Home** | Forest hero block: "Your 2026 refund so far" + `HeroNumber` (lime) + "estimate". Below on cream: active goals (`ProgressBar` cards), then "Recommended for you" (≤3 perk cards, each with why-you line, est. € and `Set as goal`). |
-| `/goal/[id]` | **Goal** | Perk name, one-sentence rule, `ProgressBar` (secured / cap), document list (`DocumentRow`), sticky `Add document` pill. |
-| `/goal/[id]/add` | **Add document** | Two big buttons: **Take photo** / **Upload file**. After pick: preview thumbnail → "Reading…" → result card (vendor, date, amount, paid by transfer?) → status banner **Counted +€X** (limeMist) or **Not counted — paid in cash** (red) or **Needs review** (amber) → `Done`. |
+**A. Onboarding & customisation**
+1. **Welcome** — two options: **Connect to Taxfix** or **Enter my info manually**.
+2. **Connect to Taxfix** → spinner ("Fetching what Taxfix already knows…", ~1.5 s, seeded profile loads) → **Confirm your basics** screen: name, city, income band, commute km, home-office days, kids, renter/owner, household help — editable, `Confirm`.
+   **Manual** → the same basics form, empty.
+3. **Your perks** — the recommender returns the tailored perks (≤5) with a detail line and est. €; user ticks the ones to pursue and taps `Confirm`.
+4. **Finish** → lands on the **Dashboard** with the chosen goals created.
+
+**B. Dashboard**
+- Forest hero: "Your 2026 refund so far" + `HeroNumber` (lime) + "estimate".
+- **Active goals**: one `ProgressBar` card each (secured / cap in €).
+- **Archived** section (collapsed): completed or deleted goals.
+- `+ Add a goal` → back to the perks picker.
+
+**C. Goal engagement** — tapping a goal opens the Goal screen with:
+- **Progress** bar, rule sentence, document list, sticky `Add document`.
+- **Info** — what the perk is, the rule, what counts / what doesn't (from `perks.json`, plain language).
+- **Edit** — change the target (e.g. lower cap to a personal target), rename.
+- **Delete** — confirm sheet → goal moves to Archived.
+
+**D. Capture** — `Add document` → **Take photo** / **Upload file** → preview → "Reading…" → result card (vendor, date, amount, paid by transfer?) → **Counted +€X** (limeMist) / **Not counted — paid in cash** (red) / **Needs review** (amber) → `Done`.
+
+**E. Goal finished** — when `securedEur ≥ targetEur`:
+- **Success** screen: lime confetti-free celebration card — "Goal reached: €4,000 secured", what it means for the refund.
+- Line: **"Your documents are saved in Taxfix and will be pre-filled when you file."**
+- Goal moves to **Archived (completed)**; hero number stays.
+
+### Routes (Expo Router)
+
+| Route | Screen |
+|---|---|
+| `/onboarding` | Welcome (Connect / Manual) |
+| `/onboarding/basics` | Confirm your basics (prefilled or empty) |
+| `/onboarding/perks` | Tailored perks picker |
+| `/` | Dashboard (hero, active goals, archived, add goal) |
+| `/goal/[id]` | Goal (progress, docs, Info / Edit / Delete in a `⋯` menu) |
+| `/goal/[id]/add` | Add document (photo / file → OCR → status) |
+| `/goal/[id]/done` | Goal finished |
 
 ## 7. User stories + acceptance criteria
 
-**S1 — Relevant perks only.** Home shows ≤3 perks from the recommender, ranked by estimated € for the seeded profile; non-matching perks never appear; each card has a why-you line.
+**S0 — Onboarding.** New user sees Connect / Manual; Connect shows a spinner then a prefilled, editable basics form; Manual shows it empty; confirming leads to the perks picker; confirming perks creates goals and lands on the Dashboard. Persisted (AsyncStorage) — relaunch skips onboarding.
 
-**S2 — Pick a goal.** `Set as goal` creates `{perkId, targetEur, securedEur: 0, documents: []}`; goal screen shows the bar in euros with the cap named ("€4,000 max credit") and the rule sentence; multiple goals allowed; goals persist across app restarts (AsyncStorage).
+**S1 — Tailored perks.** Perks picker shows ≤5 perks from the recommender, ranked by est. € for the profile; non-matching perks never appear; each has a detail line.
 
-**S3 — Capture with OCR.** From a goal: take a photo or upload a file → the extraction returns `{vendor, date, amountEur, labourEur, paidByTransfer, category, confidence}` → the app computes the benefit (§9) → bar animates and Home hero updates. For §35a perks, `paidByTransfer: false` → **not counted** with the line "Pay by bank transfer next time — then this counts." `unknown` → needs review. Document appears in the goal's list with status.
+**S2 — Dashboard & goals.** Each active goal shows a bar in euros with the cap named; Archived holds completed and deleted goals; `⋯` on a goal offers Info / Edit / Delete; Delete asks to confirm and archives.
 
-**S4 — Before Dec 31 (stretch, only if S1–S3 demo cleanly by 20:15).** Card on Home with ≤3 moves and € values from `perks.json → moves`, phrased by the planner.
+**S3 — Capture with OCR.** From a goal: photo or file → extraction JSON → benefit computed (§9) → bar animates, hero updates. §35a perks with `paidByTransfer: false` → **not counted** + "Pay by bank transfer next time — then this counts." `unknown` → needs review. Document listed with status.
+
+**S4 — Goal finished.** Reaching the target opens the success screen with the "saved in Taxfix, pre-filled when you file" line and archives the goal as completed.
+
+**S5 — Before Dec 31 (stretch, only if S0–S4 demo cleanly by 20:15).** Dashboard card with ≤3 moves and € values from `perks.json → moves`.
 
 ## 8. API
 
@@ -129,19 +165,20 @@ Benefit math, in code:
 
 - `cleaner_transfer.jpg` — cleaning invoice, €720, "Zahlung per Überweisung", IBAN visible → counted, +€144.
 - `plumber_cash.jpg` — plumber invoice, €900 labour, "Barzahlung" → not counted.
+- `cleaning_contract.jpg` — annual cleaning contract, €19,000, Überweisung → pushes the goal over its cap for the success beat.
 - Make them tonight: type the text into a Google Doc / Notes, screenshot on the phone. Real-looking enough for OCR.
 
-## 11. Demo script (90 s, recorded on a phone screen)
+## 11. Demo script (90 s, phone screen recording)
 
-1. Home: "Lena — refund so far €0", three recommended perks with € values. (S1)
-2. Tap `Set as goal` on Household services → bar €0 / €4,000, rule sentence. (S2)
-3. `Add document` → **Take photo** of the cleaner invoice → "Reading…" → result card → **Counted +€144** → bar animates, Home hero shows €144. (S3)
-4. `Upload file` → plumber PDF → **Not counted — paid in cash. Pay by transfer next time.** (S3, the honest beat)
-5. (Stretch) "Before Dec 31" card. (S4)
-6. Close on the hero number: "That's why she opens Taxfix in November."
+1. Welcome → **Connect to Taxfix** → spinner → basics prefilled → `Confirm`. (S0)
+2. Perks picker: three tailored perks with € → tick Household services → `Confirm` → Dashboard, goal at €0 / €4,000. (S1, S2)
+3. `Add document` → **Take photo** of the cleaner invoice → "Reading…" → **Counted +€144** → bar animates, hero €144. (S3)
+4. **Upload file** → plumber invoice → **Not counted — paid in cash.** (S3, the honest beat)
+5. Upload one more (a big cleaning contract fixture, €19,000) → goal reached → success screen: "Your documents are saved in Taxfix and will be pre-filled when you file." (S4)
+6. Back on Dashboard: goal in Archived (completed), hero number up. Close: "That's why she opens Taxfix in November."
 
 ## 12. Definition of done
 
-- S1–S3 pass on the seeded user with the two fixtures, in Expo Go on a real phone.
+- S0–S4 pass on the seeded user with the fixtures, in Expo Go on a real phone.
 - Video ≤2 min named `TeamName_TaxPerks.mp4`, uploaded before 21:00.
 - README: team, members, one-liner, repo link, and "how we used Cursor" (agents per spec section, MCP serving perks.json, parallel agents on screens/API/design system).
