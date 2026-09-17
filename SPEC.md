@@ -86,12 +86,15 @@ This is "what Taxfix already knows from last year's filing".
 - `+ Add a goal` → back to the perks picker.
 
 **C. Goal engagement** — tapping a goal opens the Goal screen with:
-- **Progress** bar, rule sentence, document list, sticky `Add document`.
+- **Progress** bar, rule sentence, entry list (manual + documents), sticky `Add document` and secondary `Add manually`.
 - **Info** — what the perk is, the rule, what counts / what doesn't (from `perks.json`, plain language).
 - **Edit** — change the target (e.g. lower cap to a personal target), rename.
 - **Delete** — confirm sheet → goal moves to Archived.
 
-**D. Capture** — `Add document` → **Take photo** / **Upload file** → preview → "Reading…" → result card (vendor, date, amount, paid by transfer?) → **Counted +€X** (limeMist) / **Not counted — paid in cash** (red) / **Needs review** (amber) → `Done`.
+**D. Goal update** — two ways to move the bar, both from the Goal screen:
+- **Manual update** — `Add manually`: amount (€), date, short note ("Cleaner, March"), optional "paid by bank transfer" toggle for §35a perks → benefit computed (§9) → bar animates. No document required; the entry is listed with status *manual*.
+- **Automatic update by financial artefact** — `Add document` → **Take photo** / **Upload file** (invoice, receipt, contract; image or PDF) → preview → "Reading…" → extraction fills the same fields (vendor, date, amount, labour, paid by transfer?) → result card the user can correct → **Counted +€X** (limeMist) / **Not counted — paid in cash** (red) / **Needs review** (amber) → `Done`. Entry listed with the artefact thumbnail and status.
+- **Invoice upload specifics** — extraction must return `labourEur` separately from `amountEur` (only labour counts for §35a); detect payment method from "Überweisung" / IBAN / "Barzahlung" / "bar"; if the invoice date is outside the tax year, status *needs review* with "Dated 2025 — belongs to last year's return."
 
 **E. Goal finished** — when `securedEur ≥ targetEur`:
 - **Success** screen: lime confetti-free celebration card — "Goal reached: €4,000 secured", what it means for the refund.
@@ -108,6 +111,7 @@ This is "what Taxfix already knows from last year's filing".
 | `/` | Dashboard (hero, active goals, archived, add goal) |
 | `/goal/[id]` | Goal (progress, docs, Info / Edit / Delete in a `⋯` menu) |
 | `/goal/[id]/add` | Add document (photo / file → OCR → status) |
+| `/goal/[id]/manual` | Add manually (amount, date, note, transfer toggle) |
 | `/goal/[id]/done` | Goal finished |
 
 ## 7. User stories + acceptance criteria
@@ -118,7 +122,7 @@ This is "what Taxfix already knows from last year's filing".
 
 **S2 — Dashboard & goals.** Each active goal shows a bar in euros with the cap named; Archived holds completed and deleted goals; `⋯` on a goal offers Info / Edit / Delete; Delete asks to confirm and archives.
 
-**S3 — Capture with OCR.** From a goal: photo or file → extraction JSON → benefit computed (§9) → bar animates, hero updates. §35a perks with `paidByTransfer: false` → **not counted** + "Pay by bank transfer next time — then this counts." `unknown` → needs review. Document listed with status.
+**S3 — Goal update.** (a) *Manual*: amount + date + note (+ transfer toggle for §35a) → benefit computed → bar and hero update; entry listed as *manual*. (b) *Artefact*: photo or file → extraction JSON → editable result card → benefit computed → bar and hero update; entry listed with thumbnail. For §35a perks, `paidByTransfer: false` → **not counted** + "Pay by bank transfer next time — then this counts." `unknown` or wrong tax year → **needs review**. Both paths write the same `Entry {source: 'manual'|'document', amountEur, labourEur, date, paidByTransfer, benefitEur, status}`.
 
 **S4 — Goal finished.** Reaching the target opens the success screen with the "saved in Taxfix, pre-filled when you file" line and archives the goal as completed.
 
